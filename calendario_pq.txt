@@ -1,0 +1,28 @@
+let
+    Fonte = {43101..46022},
+    #"Convertido para Tabela" = Table.FromList(Fonte, Splitter.SplitByNothing(), null, null, ExtraValues.Error),
+    #"Colunas Renomeadas" = Table.RenameColumns(#"Convertido para Tabela",{{"Column1", "Data"}}),
+    #"Tipo Alterado" = Table.TransformColumnTypes(#"Colunas Renomeadas",{{"Data", type date}}),
+    #"Personalização Adicionada" = Table.AddColumn(#"Tipo Alterado", "ID Data", each Number.ToText ( Date.Year  ( Record.Field (_,"Data") ), "d4" )  & 
+                                           Number.ToText ( Date.Month ( Record.Field (_,"Data") ), "d2" ) & 
+                                           Number.ToText ( Date.Day   ( Record.Field (_,"Data") ), "d2" )),
+    #"Tipo Alterado1" = Table.TransformColumnTypes(#"Personalização Adicionada",{{"ID Data", Int64.Type}}),
+	#"Início da Semana Inserido" = Table.AddColumn(#"Tipo Alterado1", "Início da Semana", each if Date.Month (Date.StartOfWeek([Data],Day.Monday)) <> Date.Month([Data]) then Date.StartOfMonth([Data]) else Date.StartOfWeek([Data],Day.Monday)     , type date),
+    #"Fim da Semana Inserido" = Table.AddColumn(#"Início da Semana Inserido", "Fim da Semana", each if Date.Month (Date.EndOfWeek([Data],Day.Monday)) <> Date.Month([Data]) then Date.EndOfMonth([Data]) else Date.EndOfWeek([Data],Day.Monday), type date),
+    #"Personalização Adicionada1" = Table.AddColumn(#"Fim da Semana Inserido", "Semana", each Date.ToText([Início da Semana], "dd/MM ddd" ) & " a " & Date.ToText([Fim da Semana], "dd/MM ddd" )       ),
+    #"Personalização Adicionada2" = Table.AddColumn(#"Personalização Adicionada1", "OrdemSemana", each Date.Year([Data])*10000 + Date.Month([Fim da Semana])*100 + Date.Day([Fim da Semana])),
+    #"Tipo Alterado2" = Table.TransformColumnTypes(#"Personalização Adicionada2",{{"OrdemSemana", Int64.Type}, {"Semana", type text}}),
+    #"Mês Inserido" = Table.AddColumn(#"Tipo Alterado2", "NumMes", each Date.Month([Data]), Int64.Type),
+    #"Nome do Mês Inserido" = Table.AddColumn(#"Mês Inserido", "Mês", each Date.MonthName([Data]), type text),
+    #"Colocar Cada Palavra Em Maiúscula" = Table.TransformColumns(#"Nome do Mês Inserido",{{"Mês", Text.Proper, type text}}),
+    #"Primeiros Caracteres Inseridos" = Table.AddColumn(#"Colocar Cada Palavra Em Maiúscula", "Mês Abr", each Text.Start([Mês], 3), type text),
+    #"Ano Inserido" = Table.AddColumn(#"Primeiros Caracteres Inseridos", "Ano", each Date.Year([Data]), Int64.Type),
+    #"Coluna Mesclada Inserida" = Table.AddColumn(#"Ano Inserido", "Mês-Ano", each Text.Combine({[Mês Abr], Text.End(Text.From([Ano], "pt-BR"),2)}, "-"), type text),
+    #"Personalização Adicionada3" = Table.AddColumn(#"Coluna Mesclada Inserida", "NumMesAno", each [Ano]*100  + [NumMes]),
+    #"Tipo Alterado3" = Table.TransformColumnTypes(#"Personalização Adicionada3",{{"NumMesAno", Int64.Type}}),
+    #"Semana do Ano Inserida" = Table.AddColumn(#"Tipo Alterado3", "OrdemSemana2", each Date.Year([Data]) * 100 + Date.WeekOfYear([Início da Semana]), Int64.Type),
+    #"Início do Mês Inserido" = Table.AddColumn(#"Semana do Ano Inserida", "Início do Mês", each Date.StartOfMonth([Data]), type date),
+    #"Fim do Mês Inserido" = Table.AddColumn(#"Início do Mês Inserido", "Fim do Mês", each Date.EndOfMonth([Data]), type date),
+    #"Colunas Removidas" = Table.RemoveColumns(#"Fim do Mês Inserido",{"OrdemSemana2"})
+in
+    #"Colunas Removidas"
